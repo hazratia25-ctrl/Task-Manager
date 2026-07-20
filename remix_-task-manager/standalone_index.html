@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سامانه مدیریت وظایف - تک‌فایل</title>
+    <!-- Tailwind CSS v4 CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Vazirmatn', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts: Vazirmatn -->
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Supabase JS v2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            background-color: #f8fafc;
+        }
+        /* Hide scrollbars */
+        .scrollbar-none::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-none {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 pb-12">
+
+    <!-- Top Header -->
+    <header class="bg-white border-b border-slate-100 shadow-sm mb-8">
+        <div class="max-w-7xl mx-auto px-4 py-6 md:py-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div class="flex items-center gap-3.5">
+                <div class="h-12 w-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-600/10 shrink-0">
+                    <i data-lucide="list-todo" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-black text-slate-800 tracking-tight">سامانه جامع مدیریت وظایف</h1>
+                    <p class="text-xs text-slate-400 mt-1 font-semibold">توسعه یافته با Vanilla JS، تقویم خورشیدی و پایگاه داده Supabase</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2.5 bg-slate-50 border border-slate-100 px-4 py-2.5 rounded-2xl text-slate-600 self-start md:self-auto shadow-sm">
+                <i data-lucide="calendar" class="w-4 h-4 text-emerald-600"></i>
+                <span id="current-date-badge" class="text-xs font-bold font-mono text-slate-700">امروز</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4">
+        <!-- DB Mode Config Panel -->
+        <div class="w-full bg-slate-900 border border-slate-800 rounded-2xl text-slate-100 p-4 mb-6 shadow-lg">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="p-2.5 bg-slate-800 rounded-xl text-slate-300">
+                        <i data-lucide="settings" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-sm">تنظیمات دیتابیس و همگام‌سازی</h3>
+                        <p id="db-mode-desc" class="text-xs text-slate-400 mt-1">در حال استفاده از حافظه مرورگر (آفلاین / لوکال)</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 justify-end sm:justify-start">
+                    <span id="db-mode-badge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                        <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                        حافظه آفلاین محلی
+                    </span>
+                    <button onclick="toggleConfigPanel()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-xl transition-all border border-slate-700/50 cursor-pointer">
+                        تغییر تنظیمات
+                    </button>
+                </div>
+            </div>
+
+            <!-- Expandable Config Form -->
+            <div id="config-form-container" class="hidden mt-5 pt-5 border-t border-slate-800/80">
+                <div class="mb-4">
+                    <label class="block text-xs font-medium text-slate-300 mb-2">نوع دیتابیس / ذخیره‌سازی</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button type="button" onclick="setDBMode('local')" id="btn-mode-local" class="py-3 px-4 rounded-xl text-xs font-semibold border bg-blue-600/10 border-blue-500 text-blue-300 flex flex-col items-center justify-center gap-1.5 cursor-pointer">
+                            <span>حافظه مرورگر (آفلاین)</span>
+                            <span class="text-[10px] opacity-80 font-normal">بدون نیاز به ثبت‌نام و اکانت</span>
+                        </button>
+                        <button type="button" onclick="setDBMode('supabase')" id="btn-mode-supabase" class="py-3 px-4 rounded-xl text-xs font-semibold border bg-slate-800/40 border-slate-700 text-slate-400 hover:bg-slate-800 flex flex-col items-center justify-center gap-1.5 cursor-pointer">
+                            <span>دیتابیس Supabase (واقعی)</span>
+                            <span class="text-[10px] opacity-80 font-normal">ذخیره ابری با ایمیل و پسورد</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="supabase-inputs" class="hidden space-y-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Project URL</label>
+                        <input type="text" id="supabase-url" placeholder="https://your-project.supabase.co" class="w-full bg-slate-950 border border-slate-800 text-slate-200 text-sm font-mono rounded-xl px-3 py-2.5 focus:outline-none focus:border-emerald-500 transition-all text-left" dir="ltr">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Anon API Key</label>
+                        <input type="password" id="supabase-anon-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." class="w-full bg-slate-950 border border-slate-800 text-slate-200 text-sm font-mono rounded-xl px-3 py-2.5 focus:outline-none focus:border-emerald-500 transition-all text-left" dir="ltr">
+                    </div>
+                </div>
+
+                <div id="config-status-msg" class="hidden mb-4 p-3 rounded-xl text-xs flex items-center gap-2"></div>
+
+                <div class="flex items-center gap-3 justify-end mt-4">
+                    <button type="button" onclick="saveDatabaseConfig()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl transition-all cursor-pointer">
+                        اعمال و ذخیره تنظیمات
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Auth Status Bar / Login Box -->
+        <div id="auth-section"></div>
+
+        <!-- Main Workspace Panels (Initially hidden until logged in) -->
+        <div id="main-app-grid" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
+            <!-- Form Column -->
+            <div class="lg:col-span-4 lg:order-2">
+                <div class="bg-white border border-slate-100 rounded-3xl shadow-xl p-6 md:p-8">
+                    <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-50">
+                        <h2 id="form-title" class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <span class="inline-block w-2.5 h-6 bg-emerald-500 rounded-full"></span>
+                            افزودن وظیفه جدید
+                        </h2>
+                        <button onclick="cancelEditTask()" id="btn-cancel-edit" class="hidden p-1.5 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-slate-600 transition-colors">
+                            <i data-lucide="x" class="w-4.5 h-4.5"></i>
+                        </button>
+                    </div>
+
+                    <form onsubmit="handleTaskFormSubmit(event)" class="space-y-5">
+                        <input type="hidden" id="task-id">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1.5">عنوان وظیفه (اجباری)</label>
+                            <input type="text" id="task-title" required placeholder="مثال: جلسه هفتگی با تیم توسعه" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500 transition-all text-right">
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <!-- Jalali Date Selector -->
+                            <div class="relative">
+                                <label class="block text-xs font-semibold text-slate-600 mb-1.5">تاریخ انجام (شمسی)</label>
+                                <input type="text" id="task-date" readonly onclick="showDatePickerPopover()" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-3 pr-10 text-right cursor-pointer focus:outline-none">
+                                <div class="absolute inset-y-0 right-0 pr-3 pt-6 flex items-center text-slate-400 pointer-events-none">
+                                    <i data-lucide="calendar" class="w-4 h-4"></i>
+                                </div>
+                                <!-- Jalali Popover -->
+                                <div id="datepicker-popover" class="hidden absolute z-50 mt-2 right-0 w-72 bg-white border border-slate-100 rounded-2xl shadow-xl p-4">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <button type="button" onclick="changeNavMonth(1)" class="p-1 hover:bg-slate-50 rounded"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+                                        <span id="dp-month-year" class="text-xs font-bold text-slate-700"></span>
+                                        <button type="button" onclick="changeNavMonth(-1)" class="p-1 hover:bg-slate-50 rounded"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                                    </div>
+                                    <div class="grid grid-cols-7 gap-1 text-center mb-2" id="dp-weekday-headers"></div>
+                                    <div class="grid grid-cols-7 gap-1 text-center" id="dp-days-grid"></div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1.5">ساعت انجام</label>
+                                <input type="time" id="task-time" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-3 focus:outline-none text-right">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-2.5">برچسب / دسته‌بندی</label>
+                            <div class="flex flex-wrap gap-2">
+                                <button type="button" onclick="setTaskTag('کاری')" id="tag-btn-work" class="px-3.5 py-2 text-xs font-semibold rounded-xl border bg-emerald-600 text-white border-emerald-600">کاری</button>
+                                <button type="button" onclick="setTaskTag('شخصی')" id="tag-btn-personal" class="px-3.5 py-2 text-xs font-semibold rounded-xl border bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100">شخصی</button>
+                                <button type="button" onclick="setTaskTag('فوری')" id="tag-btn-urgent" class="px-3.5 py-2 text-xs font-semibold rounded-xl border bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100">فوری</button>
+                                <button type="button" onclick="setTaskTag('custom')" id="tag-btn-custom" class="px-3.5 py-2 text-xs font-semibold rounded-xl border bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100">دلخواه</button>
+                            </div>
+                            <input type="text" id="task-custom-tag" placeholder="برچسب دلخواه خود را بنویسید..." class="hidden mt-3 w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-emerald-500 transition-all text-right">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1.5">مکان (اختیاری)</label>
+                            <input type="text" id="task-location" placeholder="مثال: سالن جلسات شماره ۲" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-3 focus:outline-none text-right">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1.5">توضیحات تکمیلی (اختیاری)</label>
+                            <textarea id="task-desc" rows="3" placeholder="جزئیات بیشتر..." class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-3 focus:outline-none text-right resize-none"></textarea>
+                        </div>
+
+                        <div class="flex gap-3 pt-4 border-t border-slate-50">
+                            <button type="submit" id="btn-submit-task" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                                <span id="btn-submit-text">ثبت وظیفه جدید</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- List Column -->
+            <div class="lg:col-span-8 lg:order-1 space-y-6">
+                <!-- Search & Filters -->
+                <div class="bg-white border border-slate-100 rounded-3xl p-5 shadow-xl flex flex-col md:flex-row gap-4 items-center">
+                    <div class="relative w-full md:flex-1">
+                        <input type="text" id="search-bar" oninput="renderTasks()" placeholder="جستجو در عنوان، مکان و توضیحات..." class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-2xl pl-4 pr-10 py-3 focus:outline-none focus:border-emerald-500 text-right">
+                        <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 pointer-events-none">
+                            <i data-lucide="search" class="w-4.5 h-4.5"></i>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-none">
+                        <button onclick="setFilter('همه')" id="filter-all" class="px-3.5 py-1.5 text-xs font-semibold rounded-xl border bg-slate-800 text-white border-slate-800">همه</button>
+                        <button onclick="setFilter('کاری')" id="filter-work" class="px-3.5 py-1.5 text-xs font-semibold rounded-xl border bg-slate-50 text-slate-600 border-slate-200">کاری</button>
+                        <button onclick="setFilter('شخصی')" id="filter-personal" class="px-3.5 py-1.5 text-xs font-semibold rounded-xl border bg-slate-50 text-slate-600 border-slate-200">شخصی</button>
+                        <button onclick="setFilter('فوری')" id="filter-urgent" class="px-3.5 py-1.5 text-xs font-semibold rounded-xl border bg-slate-50 text-slate-600 border-slate-200">فوری</button>
+                        <button onclick="setFilter('completed')" id="filter-completed" class="px-3.5 py-1.5 text-xs font-semibold rounded-xl border bg-slate-50 text-slate-600 border-slate-200">انجام‌شده</button>
+                    </div>
+                </div>
+
+                <!-- Tasks Listing Grid -->
+                <div id="tasks-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Block -->
+    <script>
+        // --- JALALI UTILS ---
+        const JALALI_MONTHS = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
+        const WEEKDAYS_SHORT = ["ش", "ی", "د", "س", "چ", "پ", "ج"];
+        const WEEKDAYS_FULL = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه"];
+
+        function gregorianToJalali(gy, gm, gd) {
+            const g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 335];
+            let jy = (gy > 1600) ? 979 : 0;
+            gy -= (gy > 1600) ? 1600 : 621;
+            const gy2 = (gm > 2) ? (gy + 1) : gy;
+            let days = (365 * gy) + Math.floor((gy2 + 3) / 4) - Math.floor((gy2 + 99) / 100) + Math.floor((gy2 + 399) / 400) - 80 + gd + g_d_m[gm - 1];
+            jy += 33 * Math.floor(days / 12053); days %= 12053;
+            jy += 4 * Math.floor(days / 1461); days %= 1461;
+            if (days > 365) { jy += Math.floor((days - 1) / 365); days = (days - 1) % 365; }
+            let jm = (days < 186) ? 1 + Math.floor(days / 31) : 7 + Math.floor((days - 186) / 30);
+            let jd = 1 + ((days < 186) ? (days % 31) : ((days - 186) % 30));
+            return [jy, jm, jd];
+        }
+
+        function jalaliToGregorian(jy, jm, jd) {
+            const sal_a = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 335];
+            const jy2 = jy - 979;
+            let g_day_no = 365 * jy2 + Math.floor(jy2 / 33) * 8 + Math.floor((jy2 % 33 + 3) / 4);
+            for (let i = 0; i < jm - 1; ++i) g_day_no += (i < 6) ? 31 : 30;
+            g_day_no += jd - 1;
+            let gy = 1600 + 400 * Math.floor(g_day_no / 146097); g_day_no %= 146097;
+            let leap = true;
+            if (g_day_no >= 36525) { g_day_no--; gy += 100 * Math.floor(g_day_no / 36524); g_day_no %= 36524; if (g_day_no >= 365) g_day_no++; else leap = false; }
+            gy += 4 * Math.floor(g_day_no / 1461); g_day_no %= 1461;
+            if (g_day_no >= 366) { leap = false; g_day_no--; gy += Math.floor(g_day_no / 365); g_day_no %= 365; }
+            let i = 0;
+            while (g_day_no >= sal_a[i] + (i === 1 && leap ? 1 : 0)) { g_day_no -= sal_a[i] + (i === 1 && leap ? 1 : 0); i++; }
+            return [gy, i + 1, g_day_no + 1];
+        }
+
+        function isJalaliLeap(jy) {
+            const r = jy % 33;
+            return r === 1 || r === 5 || r === 9 || r === 13 || r === 17 || r === 22 || r === 26 || r === 30;
+        }
+
+        function getJalaliMonthDays(jy, jm) {
+            if (jm >= 1 && jm <= 6) return 31;
+            if (jm >= 7 && jm <= 11) return 30;
+            return isJalaliLeap(jy) ? 30 : 29;
+        }
+
+        function getJalaliMonthStartWeekday(jy, jm) {
+            const [gy, gm, gd] = jalaliToGregorian(jy, jm, 1);
+            const date = new Date(gy, gm - 1, gd);
+            return (date.getDay() + 1) % 7; // Saturday is 0
+        }
+
+        function getTodayJalaliString() {
+            const d = new Date();
+            const [jy, jm, jd] = gregorianToJalali(d.getFullYear(), d.getMonth() + 1, d.getDate());
+            return `${jy}/${jm < 10 ? '0' + jm : jm}/${jd < 10 ? '0' + jd : jd}`;
+        }
+
+        function getCurrentTimeString() {
+            const d = new Date();
+            const h = d.getHours();
+            const m = d.getMinutes();
+            return `${h < 10 ? '0' + h : h}:${m < 10 ? '0' + m : m}`;
+        }
+
+        function isTaskOverdue(dateStr, timeStr) {
+            const today = getTodayJalaliString();
+            if (dateStr < today) return true;
+            if (dateStr === today) return timeStr < getCurrentTimeString();
+            return false;
+        }
+
+        function formatJalaliDateFull(dateStr) {
+            const parts = dateStr.split("/");
+            if (parts.length !== 3) return dateStr;
+            const jy = parseInt(parts[0]);
+            const jm = parseInt(parts[1]);
+            const jd = parseInt(parts[2]);
+            const [gy, gm, gd] = jalaliToGregorian(jy, jm, jd);
+            const pIndex = (new Date(gy, gm - 1, gd).getDay() + 1) % 7;
+            return `${WEEKDAYS_FULL[pIndex]} ${jd} ${JALALI_MONTHS[jm - 1]} ${jy}`;
+        }
+
+        function toPersianDigits(str) {
+            return String(str).replace(/[0-9]/g, w => ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"][parseInt(w)]);
+        }
+
+        // --- GLOBAL APP STATE ---
+        let dbMode = "local"; // local | supabase
+        let supabaseClient = null;
+        let currentUser = null;
+        let tasks = [];
+        let selectedTag = "کاری";
+        let activeFilter = "همه";
+        let editingTaskId = null;
+
+        // Datepicker state
+        let dpYear = 1405;
+        let dpMonth = 1;
+
+        // Initialize App
+        window.addEventListener('DOMContentLoaded', () => {
+            // Set current date in badge
+            document.getElementById("current-date-badge").innerText = toPersianDigits(formatJalaliDateFull(getTodayJalaliString()));
+            
+            // Set default date in form
+            document.getElementById("task-date").value = getTodayJalaliString();
+            document.getElementById("task-time").value = getCurrentTimeString();
+
+            // Load saved DB configs
+            const savedUrl = localStorage.getItem("supabase_url");
+            const savedKey = localStorage.getItem("supabase_anon_key");
+            if (savedUrl && savedKey) {
+                document.getElementById("supabase-url").value = savedUrl;
+                document.getElementById("supabase-anon-key").value = savedKey;
+                dbMode = "supabase";
+                initSupabase(savedUrl, savedKey);
+            } else {
+                setDBMode("local");
+            }
+
+            // Bind click outside datepicker
+            document.addEventListener('click', (e) => {
+                const popover = document.getElementById("datepicker-popover");
+                const dateInput = document.getElementById("task-date");
+                if (popover && !popover.contains(e.target) && e.target !== dateInput) {
+                    popover.classList.add("hidden");
+                }
+            });
+
+            checkAuthSession();
+        });
+
+        // Config Panel logic
+        function toggleConfigPanel() {
+            const container = document.getElementById("config-form-container");
+            container.classList.toggle("hidden");
+        }
+
+        function setDBMode(mode) {
+            dbMode = mode;
+            const btnLocal = document.getElementById("btn-mode-local");
+            const btnSupabase = document.getElementById("btn-mode-supabase");
+            const inputs = document.getElementById("supabase-inputs");
+
+            if (mode === "local") {
+                btnLocal.className = "py-3 px-4 rounded-xl text-xs font-semibold border bg-blue-600/10 border-blue-500 text-blue-300 flex flex-col items-center justify-center gap-1.5 cursor-pointer";
+                btnSupabase.className = "py-3 px-4 rounded-xl text-xs font-semibold border bg-slate-800/40 border-slate-700 text-slate-400 hover:bg-slate-800 flex flex-col items-center justify-center gap-1.5 cursor-pointer";
+                inputs.classList.add("hidden");
+            } else {
+                btnSupabase.className = "py-3 px-4 rounded-xl text-xs font-semibold border bg-emerald-600/10 border-emerald-500 text-emerald-300 flex flex-col items-center justify-center gap-1.5 cursor-pointer";
+                btnLocal.className = "py-3 px-4 rounded-xl text-xs font-semibold border bg-slate-800/40 border-slate-700 text-slate-400 hover:bg-slate-800 flex flex-col items-center justify-center gap-1.5 cursor-pointer";
+                inputs.classList.remove("hidden");
+            }
+        }
+
+        function initSupabase(url, key) {
+            try {
+                supabaseClient = supabase.createClient(url, key);
+                dbMode = "supabase";
+                
+                document.getElementById("db-mode-desc").innerText = "متصل به سرور ابری Supabase (اطلاعات همگام‌سازی می‌شوند)";
+                const badge = document.getElementById("db-mode-badge");
+                badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30";
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span>دیتابیس Supabase`;
+                
+                showStatusMessage("success", "اتصال به Supabase برقرار شد.");
+                checkAuthSession();
+            } catch (err) {
+                console.error(err);
+                showStatusMessage("error", "خطا در تنظیم کلاینت Supabase.");
+            }
+        }
+
+        function saveDatabaseConfig() {
+            if (dbMode === "local") {
+                localStorage.removeItem("supabase_url");
+                localStorage.removeItem("supabase_anon_key");
+                supabaseClient = null;
+                
+                document.getElementById("db-mode-desc").innerText = "در حال استفاده از حافظه مرورگر (آفلاین / لوکال)";
+                const badge = document.getElementById("db-mode-badge");
+                badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/30";
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-400"></span>حافظه آفلاین محلی`;
+                
+                showStatusMessage("success", "تنظیمات به حالت محلی منتقل شدند.");
+                checkAuthSession();
+            } else {
+                const url = document.getElementById("supabase-url").value.trim();
+                const key = document.getElementById("supabase-anon-key").value.trim();
+                if (!url || !key) {
+                    showStatusMessage("error", "وارد کردن آدرس و کلید الزامی است.");
+                    return;
+                }
+                localStorage.setItem("supabase_url", url);
+                localStorage.setItem("supabase_anon_key", key);
+                initSupabase(url, key);
+            }
+            setTimeout(() => {
+                document.getElementById("config-form-container").classList.add("hidden");
+            }, 1000);
+        }
+
+        function showStatusMessage(type, msg) {
+            const container = document.getElementById("config-status-msg");
+            container.classList.remove("hidden", "bg-rose-500/10", "border-rose-500/20", "text-rose-300", "bg-emerald-500/10", "border-emerald-500/20", "text-emerald-300");
+            if (type === "error") {
+                container.classList.add("bg-rose-500/10", "border", "border-rose-500/20", "text-rose-300");
+            } else {
+                container.classList.add("bg-emerald-500/10", "border", "border-emerald-500/20", "text-emerald-300");
+            }
+            container.innerText = msg;
+        }
+
+        // --- AUTH SYSTEM ---
+        async function checkAuthSession() {
+            if (dbMode === "supabase" && supabaseClient) {
+                const { data } = await supabaseClient.auth.getSession();
+                setSessionUser(data.session ? data.session.user : null);
+            } else {
+                const localUser = localStorage.getItem("local_session_user");
+                setSessionUser(localUser ? JSON.parse(localUser) : null);
+            }
+        }
+
+        function setSessionUser(user) {
+            currentUser = user;
+            renderAuthUi();
+            if (user) {
+                document.getElementById("main-app-grid").classList.remove("hidden");
+                fetchTasks();
+            } else {
+                document.getElementById("main-app-grid").classList.add("hidden");
+                tasks = [];
+            }
+        }
+
+        function renderAuthUi() {
+            const container = document.getElementById("auth-section");
+            if (currentUser) {
+                container.innerHTML = `
+                    <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex items-center justify-between gap-4 mb-6">
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm">
+                                ${currentUser.email.substring(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                                <span class="text-xs text-slate-400 block font-semibold">کاربر فعلی</span>
+                                <span class="text-sm font-semibold text-slate-700 font-mono">${currentUser.email}</span>
+                            </div>
+                        </div>
+                        <button onclick="logout()" class="px-4 py-2 bg-slate-50 hover:bg-rose-50 text-slate-600 hover:text-rose-600 text-xs font-semibold rounded-xl transition-all border border-slate-200/60 hover:border-rose-200/50 flex items-center gap-1.5 cursor-pointer">
+                            <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                            <span>خروج از حساب</span>
+                        </button>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="max-w-md mx-auto bg-white border border-slate-100 rounded-3xl shadow-xl p-8 mb-6">
+                        <div class="text-center mb-6">
+                            <div class="inline-flex p-3 bg-emerald-50 text-emerald-600 rounded-2xl mb-3">
+                                <i data-lucide="log-in" class="w-7 h-7"></i>
+                            </div>
+                            <h2 id="auth-title" class="text-xl font-bold text-slate-800">ورود به سامانه وظایف</h2>
+                            <p class="text-xs text-slate-400 mt-1">جهت سازماندهی کارهای خود در سامانه عضو شوید یا وارد شوید</p>
+                        </div>
+                        <form onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                            <div id="auth-error-alert" class="hidden p-3 bg-rose-50 border border-rose-100 text-rose-600 rounded-xl text-xs flex items-center gap-2"></div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1.5">آدرس ایمیل</label>
+                                <input type="email" id="auth-email" required placeholder="example@mail.com" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm font-mono rounded-xl px-4 py-3 focus:outline-none text-left" dir="ltr">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1.5">رمز عبور</label>
+                                <input type="password" id="auth-password" required placeholder="••••••••" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-3 focus:outline-none text-left" dir="ltr">
+                            </div>
+                            <button type="submit" id="btn-auth-submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-50 text-white text-sm font-semibold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer mt-6">
+                                <span>ورود به برنامه</span>
+                            </button>
+                        </form>
+                        <div class="text-center mt-5 pt-4 border-t border-slate-100">
+                            <button onclick="toggleAuthMode()" id="btn-toggle-auth" class="text-xs text-emerald-600 hover:text-emerald-500 font-semibold">
+                                هنوز ثبت‌نام نکرده‌اید؟ ساخت حساب کاربری
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+            lucide.createIcons();
+        }
+
+        let isSignUpMode = false;
+        function toggleAuthMode() {
+            isSignUpMode = !isSignUpMode;
+            document.getElementById("auth-title").innerText = isSignUpMode ? "ثبت نام حساب کاربری" : "ورود به سامانه وظایف";
+            document.getElementById("btn-auth-submit").querySelector("span").innerText = isSignUpMode ? "عضویت در سامانه" : "ورود به برنامه";
+            document.getElementById("btn-toggle-auth").innerText = isSignUpMode ? "حساب کاربری دارید؟ وارد شوید" : "هنوز ثبت‌نام نکرده‌اید؟ ساخت حساب کاربری";
+        }
+
+        async function handleAuthSubmit(e) {
+            e.preventDefault();
+            const email = document.getElementById("auth-email").value.trim();
+            const password = document.getElementById("auth-password").value;
+            const errorAlert = document.getElementById("auth-error-alert");
+            const btn = document.getElementById("btn-auth-submit");
+
+            errorAlert.classList.add("hidden");
+            btn.disabled = true;
+            btn.innerHTML = `<div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>`;
+
+            try {
+                if (dbMode === "supabase") {
+                    if (isSignUpMode) {
+                        const { data, error } = await supabaseClient.auth.signUp({ email, password });
+                        if (error) throw error;
+                        alert("ثبت نام با موفقیت انجام شد.");
+                        setSessionUser(data.user);
+                    } else {
+                        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                        if (error) throw error;
+                        setSessionUser(data.user);
+                    }
+                } else {
+                    // Local Storage Mock auth
+                    const localUsers = JSON.parse(localStorage.getItem("local_users") || "[]");
+                    if (isSignUpMode) {
+                        if (localUsers.find(u => u.email === email)) throw new Error("این ایمیل قبلاً ثبت نام شده است.");
+                        const newUser = { id: 'u-' + Math.random().toString(36).substr(2, 9), email, password };
+                        localUsers.push(newUser);
+                        localStorage.setItem("local_users", JSON.stringify(localUsers));
+                        localStorage.setItem("local_session_user", JSON.stringify(newUser));
+                        setSessionUser(newUser);
+                    } else {
+                        const matched = localUsers.find(u => u.email === email && u.password === password);
+                        if (!matched) throw new Error("ایمیل یا رمز عبور اشتباه است.");
+                        localStorage.setItem("local_session_user", JSON.stringify(matched));
+                        setSessionUser(matched);
+                    }
+                }
+            } catch (err) {
+                errorAlert.classList.remove("hidden");
+                errorAlert.innerText = err.message || "خطا در احراز هویت.";
+                renderAuthUi();
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function logout() {
+            if (dbMode === "supabase" && supabaseClient) {
+                await supabaseClient.auth.signOut();
+            } else {
+                localStorage.removeItem("local_session_user");
+            }
+            setSessionUser(null);
+        }
+
+        // --- TASK CRUD ---
+        async function fetchTasks() {
+            if (!currentUser) return;
+            try {
+                if (dbMode === "supabase" && supabaseClient) {
+                    const { data, error } = await supabaseClient.from("tasks").select("*").eq("user_id", currentUser.id);
+                    if (error) throw error;
+                    tasks = data || [];
+                } else {
+                    const allLocalTasks = JSON.parse(localStorage.getItem("local_tasks") || "[]");
+                    tasks = allLocalTasks.filter(t => t.user_id === currentUser.id);
+                }
+                renderTasks();
+            } catch (err) {
+                console.error(err);
+                alert("خطا در همگام‌سازی کارها. لطفاً از وجود جدول و درستی فیلدهای Supabase اطمینان حاصل کنید.");
+            }
+        }
+
+        function renderTasks() {
+            const grid = document.getElementById("tasks-grid");
+            const searchVal = document.getElementById("search-bar").value.toLowerCase().trim();
+            
+            // 1. Filter
+            let filtered = tasks.filter(task => {
+                const matchSearch = !searchVal || 
+                                    task.title.toLowerCase().includes(searchVal) ||
+                                    (task.location && task.location.toLowerCase().includes(searchVal)) ||
+                                    (task.description && task.description.toLowerCase().includes(searchVal));
+                
+                if (!matchSearch) return false;
+
+                if (activeFilter === "همه") return true;
+                if (activeFilter === "completed") return task.is_completed;
+                return task.tag === activeFilter;
+            });
+
+            // 2. Sort: Date & Time, Completed tasks to bottom
+            filtered.sort((a, b) => {
+                if (a.is_completed !== b.is_completed) return a.is_completed ? 1 : -1;
+                const dateA = `${a.date} ${a.time}`;
+                const dateB = `${b.date} ${b.time}`;
+                return dateA < dateB ? -1 : 1;
+            });
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full bg-white border border-slate-100 rounded-3xl p-12 text-center shadow-md">
+                        <i data-lucide="check-circle" class="w-12 h-12 text-slate-300 mx-auto mb-4"></i>
+                        <h3 class="font-bold text-slate-700 text-sm mb-1">هیچ وظیفه‌ای پیدا نشد!</h3>
+                        <p class="text-xs text-slate-400">یک وظیفه جدید ثبت کنید یا فیلترها را ریست کنید.</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            grid.innerHTML = filtered.map(task => {
+                const overdue = !task.is_completed && isTaskOverdue(task.date, task.time);
+                const tagColor = task.tag === "کاری" ? "bg-blue-50 text-blue-600 border-blue-100" :
+                                 task.tag === "شخصی" ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                                 task.tag === "فوری" ? "bg-rose-50 text-rose-600 border-rose-100" : "bg-purple-50 text-purple-600 border-purple-100";
+
+                return `
+                    <div class="border rounded-3xl p-5 shadow-sm transition-all duration-300 relative flex flex-col justify-between ${
+                        task.is_completed ? "bg-slate-50 opacity-60" :
+                        overdue ? "bg-rose-50 border-rose-200" : "bg-white border-slate-100 hover:border-slate-200"
+                    }">
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <span class="px-2.5 py-1 text-[10px] font-bold rounded-lg border uppercase tracking-wider ${tagColor}">${task.tag}</span>
+                                <div class="flex items-center gap-1.5">
+                                    ${overdue ? '<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-100 text-rose-600 border border-rose-200/30 text-[10px] font-extrabold rounded-lg">عقب‌افتاده</span>' : ''}
+                                    ${task.is_completed ? '<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-700 border border-emerald-200/30 text-[10px] font-bold rounded-lg">انجام شده</span>' : ''}
+                                </div>
+                            </div>
+
+                            <h4 class="font-bold text-slate-800 text-sm mb-3 ${task.is_completed ? 'line-through text-slate-400' : ''}">${task.title}</h4>
+
+                            <div class="space-y-2 mb-4 text-slate-500 text-xs">
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                                    <span>${toPersianDigits(formatJalaliDateFull(task.date))}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                                    <span class="font-mono">${toPersianDigits(task.time)}</span>
+                                </div>
+                                ${task.location ? `<div class="flex items-center gap-2"><i data-lucide="map-pin" class="w-3.5 h-3.5"></i><span>${task.location}</span></div>` : ''}
+                            </div>
+
+                            ${task.description ? `<p class="text-[11px] text-slate-400 leading-relaxed border-t border-slate-50 pt-3 mb-4">${task.description}</p>` : ''}
+                        </div>
+
+                        <div class="flex items-center justify-between border-t border-slate-50 pt-3.5">
+                            <label class="flex items-center gap-2 cursor-pointer select-none">
+                                <input type="checkbox" ${task.is_completed ? 'checked' : ''} onchange="toggleTaskComplete('${task.id}', ${task.is_completed})" class="rounded border-slate-300 text-emerald-600 h-4 w-4">
+                                <span class="text-xs font-semibold text-slate-500">انجام شد</span>
+                            </label>
+
+                            <div class="flex items-center gap-1">
+                                <button onclick="editTask('${task.id}')" class="p-2 hover:bg-amber-50 text-slate-400 hover:text-amber-500 rounded-xl transition-all"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>
+                                <button onclick="deleteTask('${task.id}')" class="p-2 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+            lucide.createIcons();
+        }
+
+        // Tag selectors
+        function setTaskTag(tag) {
+            selectedTag = tag;
+            const btnWork = document.getElementById("tag-btn-work");
+            const btnPersonal = document.getElementById("tag-btn-personal");
+            const btnUrgent = document.getElementById("tag-btn-urgent");
+            const btnCustom = document.getElementById("tag-btn-custom");
+            const customInput = document.getElementById("task-custom-tag");
+
+            [btnWork, btnPersonal, btnUrgent, btnCustom].forEach(btn => btn.className = "px-3.5 py-2 text-xs font-semibold rounded-xl border bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100");
+            customInput.classList.add("hidden");
+
+            if (tag === "کاری") btnWork.className = "px-3.5 py-2 text-xs font-semibold rounded-xl border bg-emerald-600 text-white border-emerald-600";
+            else if (tag === "شخصی") btnPersonal.className = "px-3.5 py-2 text-xs font-semibold rounded-xl border bg-emerald-600 text-white border-emerald-600";
+            else if (tag === "فوری") btnUrgent.className = "px-3.5 py-2 text-xs font-semibold rounded-xl border bg-emerald-600 text-white border-emerald-600";
+            else {
+                btnCustom.className = "px-3.5 py-2 text-xs font-semibold rounded-xl border bg-emerald-600 text-white border-emerald-600";
+                customInput.classList.remove("hidden");
+            }
+        }
+
+        // Filters list
+        function setFilter(filter) {
+            activeFilter = filter;
+            const filters = ["همه", "کاری", "شخصی", "فوری", "completed"];
+            filters.forEach(f => {
+                const key = f === "completed" ? "completed" : f === "کاری" ? "work" : f === "شخصی" ? "personal" : f === "فوری" ? "urgent" : "all";
+                const btn = document.getElementById("filter-" + key);
+                if (f === filter) {
+                    btn.className = "px-3.5 py-1.5 text-xs font-semibold rounded-xl border bg-slate-800 text-white border-slate-800";
+                } else {
+                    btn.className = "px-3.5 py-1.5 text-xs font-semibold rounded-xl border bg-slate-50 text-slate-600 border-slate-200";
+                }
+            });
+            renderTasks();
+        }
+
+        // Submit task form
+        async function handleTaskFormSubmit(e) {
+            e.preventDefault();
+            if (!currentUser) return;
+
+            const title = document.getElementById("task-title").value.trim();
+            const date = document.getElementById("task-date").value;
+            const time = document.getElementById("task-time").value;
+            const location = document.getElementById("task-location").value.trim();
+            const description = document.getElementById("task-desc").value.trim();
+            
+            const finalTag = selectedTag === "custom" ? (document.getElementById("task-custom-tag").value.trim() || "سایر") : selectedTag;
+
+            const taskPayload = {
+                title, date, time, location, description, tag: finalTag, is_completed: false
+            };
+
+            const btn = document.getElementById("btn-submit-task");
+            btn.disabled = true;
+
+            try {
+                if (dbMode === "supabase" && supabaseClient) {
+                    if (editingTaskId) {
+                        const { error } = await supabaseClient.from("tasks").update(taskPayload).eq("id", editingTaskId);
+                        if (error) throw error;
+                    } else {
+                        const { error } = await supabaseClient.from("tasks").insert([{ ...taskPayload, user_id: currentUser.id }]);
+                        if (error) throw error;
+                    }
+                } else {
+                    const allLocalTasks = JSON.parse(localStorage.getItem("local_tasks") || "[]");
+                    if (editingTaskId) {
+                        const idx = allLocalTasks.findIndex(t => t.id === editingTaskId);
+                        if (idx !== -1) allLocalTasks[idx] = { ...allLocalTasks[idx], ...taskPayload };
+                    } else {
+                        const newTask = { id: 't-' + Math.random().toString(36).substr(2, 9), user_id: currentUser.id, ...taskPayload };
+                        allLocalTasks.push(newTask);
+                    }
+                    localStorage.setItem("local_tasks", JSON.stringify(allLocalTasks));
+                }
+
+                cancelEditTask();
+                fetchTasks();
+            } catch (err) {
+                alert(err.message || "خطا در ذخیره‌سازی وظیفه.");
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function editTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (!task) return;
+
+            editingTaskId = id;
+            document.getElementById("form-title").innerText = "ویرایش وظیفه موجود";
+            document.getElementById("btn-submit-text").innerText = "بروزرسانی وظیفه";
+            document.getElementById("btn-cancel-edit").classList.remove("hidden");
+
+            document.getElementById("task-title").value = task.title;
+            document.getElementById("task-date").value = task.date;
+            document.getElementById("task-time").value = task.time;
+            document.getElementById("task-location").value = task.location || "";
+            document.getElementById("task-desc").value = task.description || "";
+
+            if (["کاری", "شخصی", "فوری"].includes(task.tag)) {
+                setTaskTag(task.tag);
+            } else {
+                setTaskTag("custom");
+                document.getElementById("task-custom-tag").value = task.tag;
+            }
+        }
+
+        function cancelEditTask() {
+            editingTaskId = null;
+            document.getElementById("form-title").innerText = "افزودن وظیفه جدید";
+            document.getElementById("btn-submit-text").innerText = "ثبت وظیفه جدید";
+            document.getElementById("btn-cancel-edit").classList.add("hidden");
+
+            document.getElementById("task-title").value = "";
+            document.getElementById("task-date").value = getTodayJalaliString();
+            document.getElementById("task-time").value = getCurrentTimeString();
+            document.getElementById("task-location").value = "";
+            document.getElementById("task-desc").value = "";
+            setTaskTag("کاری");
+        }
+
+        async function toggleTaskComplete(id, currentStatus) {
+            try {
+                if (dbMode === "supabase" && supabaseClient) {
+                    const { error } = await supabaseClient.from("tasks").update({ is_completed: !currentStatus }).eq("id", id);
+                    if (error) throw error;
+                } else {
+                    const allLocalTasks = JSON.parse(localStorage.getItem("local_tasks") || "[]");
+                    const idx = allLocalTasks.findIndex(t => t.id === id);
+                    if (idx !== -1) {
+                        allLocalTasks[idx].is_completed = !currentStatus;
+                        localStorage.setItem("local_tasks", JSON.stringify(allLocalTasks));
+                    }
+                }
+                fetchTasks();
+            } catch (err) {
+                alert("خطا در تغییر وضعیت.");
+            }
+        }
+
+        async function deleteTask(id) {
+            if (!confirm("آیا از حذف این کار مطمئن هستید؟")) return;
+            try {
+                if (dbMode === "supabase" && supabaseClient) {
+                    const { error } = await supabaseClient.from("tasks").delete().eq("id", id);
+                    if (error) throw error;
+                } else {
+                    let allLocalTasks = JSON.parse(localStorage.getItem("local_tasks") || "[]");
+                    allLocalTasks = allLocalTasks.filter(t => t.id !== id);
+                    localStorage.setItem("local_tasks", JSON.stringify(allLocalTasks));
+                }
+                fetchTasks();
+            } catch (err) {
+                alert("خطا در حذف کار.");
+            }
+        }
+
+        // --- DATEPICKER POPOVER LOGIC ---
+        function showDatePickerPopover() {
+            const popover = document.getElementById("datepicker-popover");
+            popover.classList.remove("hidden");
+            
+            const curParts = document.getElementById("task-date").value.split("/");
+            dpYear = curParts.length === 3 ? parseInt(curParts[0]) : 1405;
+            dpMonth = curParts.length === 3 ? parseInt(curParts[1]) : 1;
+            
+            renderDatePickerGrid();
+        }
+
+        function changeNavMonth(dir) {
+            dpMonth += dir;
+            if (dpMonth > 12) { dpMonth = 1; dpYear++; }
+            if (dpMonth < 1) { dpMonth = 12; dpYear--; }
+            renderDatePickerGrid();
+        }
+
+        function renderDatePickerGrid() {
+            document.getElementById("dp-month-year").innerText = toPersianDigits(`${JALALI_MONTHS[dpMonth - 1]} ${dpYear}`);
+            
+            const headers = document.getElementById("dp-weekday-headers");
+            headers.innerHTML = WEEKDAYS_SHORT.map((w, idx) => `<span class="text-[10px] font-bold ${idx === 6 ? 'text-rose-500' : 'text-slate-400'}">${w}</span>`).join("");
+
+            const grid = document.getElementById("dp-days-grid");
+            grid.innerHTML = "";
+
+            const daysInMonth = getJalaliMonthDays(dpYear, dpMonth);
+            const startWeekday = getJalaliMonthStartWeekday(dpYear, dpMonth);
+
+            for (let i = 0; i < startWeekday; i++) {
+                grid.innerHTML += `<div></div>`;
+            }
+
+            const currentVal = document.getElementById("task-date").value;
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const mStr = dpMonth < 10 ? '0' + dpMonth : dpMonth;
+                const dStr = day < 10 ? '0' + day : day;
+                const dateStr = `${dpYear}/${mStr}/${dStr}`;
+                const isSelected = dateStr === currentVal;
+
+                grid.innerHTML += `
+                    <button type="button" onclick="selectDate('${dateStr}')" class="h-8 w-8 text-[11px] rounded-lg flex items-center justify-center font-semibold transition-all ${
+                        isSelected ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-700 hover:bg-slate-50'
+                    }">
+                        ${toPersianDigits(day)}
+                    </button>
+                `;
+            }
+        }
+
+        function selectDate(dateStr) {
+            document.getElementById("task-date").value = dateStr;
+            document.getElementById("datepicker-popover").classList.add("hidden");
+        }
+    </script>
+</body>
+</html>

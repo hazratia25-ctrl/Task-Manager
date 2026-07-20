@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Task Manager",
+  "description": " اپلیکیشن پیشرفته مدیریت وظایف",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
